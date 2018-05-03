@@ -119,18 +119,18 @@ function checkboxRenderer(instance, TD, row, col, prop, value, cellProperties) {
    * @param {Boolean} [uncheckCheckbox=false]
    */
   function changeSelectedCheckboxesState(uncheckCheckbox = false) {
-    const selRange = instance.getSelectedRange();
+    const selRange = instance.getSelectedRangeLast();
 
     if (!selRange) {
       return;
     }
 
-    const topLeft = selRange.getTopLeftCorner();
-    const bottomRight = selRange.getBottomRightCorner();
+    const {row: startRow, col: startColumn} = selRange.getTopLeftCorner();
+    const {row: endRow, col: endColumn} = selRange.getBottomRightCorner();
     const changes = [];
 
-    for (let row = topLeft.row; row <= bottomRight.row; row += 1) {
-      for (let col = topLeft.col; col <= bottomRight.col; col += 1) {
+    for (let row = startRow; row <= endRow; row += 1) {
+      for (let col = startColumn; col <= endColumn; col += 1) {
         const cellProperties = instance.getCellMeta(row, col);
 
         if (cellProperties.type !== 'checkbox') {
@@ -152,10 +152,10 @@ function checkboxRenderer(instance, TD, row, col, prop, value, cellProperties) {
         const dataAtCell = instance.getDataAtCell(row, col);
 
         if (uncheckCheckbox === false) {
-          if (dataAtCell === cellProperties.checkedTemplate) {
+          if ([cellProperties.checkedTemplate, cellProperties.checkedTemplate.toString()].includes(dataAtCell)) {
             changes.push([row, col, cellProperties.uncheckedTemplate]);
 
-          } else if ([cellProperties.uncheckedTemplate, null, void 0].indexOf(dataAtCell) !== -1) {
+          } else if ([cellProperties.uncheckedTemplate, cellProperties.uncheckedTemplate.toString(), null, void 0].includes(dataAtCell)) {
             changes.push([row, col, cellProperties.checkedTemplate]);
           }
 
@@ -177,7 +177,7 @@ function checkboxRenderer(instance, TD, row, col, prop, value, cellProperties) {
    * @param {Function} callback
    */
   function eachSelectedCheckboxCell(callback) {
-    const selRange = instance.getSelectedRange();
+    const selRange = instance.getSelectedRangeLast();
 
     if (!selRange) {
       return;

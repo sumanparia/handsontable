@@ -116,9 +116,9 @@ class ManualColumnMove extends BasePlugin {
     this.addHook('afterScrollVertically', () => this.onAfterScrollVertically());
     this.addHook('modifyCol', (row, source) => this.onModifyCol(row, source));
     this.addHook('beforeRemoveCol', (index, amount) => this.onBeforeRemoveCol(index, amount));
-    this.addHook('afterRemoveCol', (index, amount) => this.onAfterRemoveCol(index, amount));
+    this.addHook('afterRemoveCol', () => this.onAfterRemoveCol());
     this.addHook('afterCreateCol', (index, amount) => this.onAfterCreateCol(index, amount));
-    this.addHook('afterLoadData', (firstTime) => this.onAfterLoadData(firstTime));
+    this.addHook('afterLoadData', () => this.onAfterLoadData());
     this.addHook('unmodifyCol', (column) => this.onUnmodifyCol(column));
 
     this.registerEvents();
@@ -177,8 +177,9 @@ class ManualColumnMove extends BasePlugin {
    * @param {Number} target Visual column index being a target for the moved columns.
    */
   moveColumns(columns, target) {
+    const visualColumns = [...columns];
     let priv = privatePool.get(this);
-    let beforeColumnHook = this.hot.runHooks('beforeColumnMove', columns, target);
+    let beforeColumnHook = this.hot.runHooks('beforeColumnMove', visualColumns, target);
 
     priv.disallowMoving = !beforeColumnHook;
 
@@ -201,7 +202,7 @@ class ManualColumnMove extends BasePlugin {
       this.columnsMapper.clearNull();
     }
 
-    this.hot.runHooks('afterColumnMove', columns, target);
+    this.hot.runHooks('afterColumnMove', visualColumns, target);
   }
 
   /**
@@ -213,11 +214,7 @@ class ManualColumnMove extends BasePlugin {
    * @param {Number} endColumn Visual column index for the end of the selection.
    */
   changeSelection(startColumn, endColumn) {
-    let selection = this.hot.selection;
-    let lastRowIndex = this.hot.countRows() - 1;
-
-    selection.setRangeStartOnly(new CellCoords(0, startColumn));
-    selection.setRangeEnd(new CellCoords(lastRowIndex, endColumn), false);
+    this.hot.selectColumns(startColumn, endColumn);
   }
 
   /**
@@ -235,7 +232,7 @@ class ManualColumnMove extends BasePlugin {
       let columnWidth = 0;
 
       if (i < 0) {
-        columnWidth = this.hot.view.wt.wtTable.getColumnWidth(i) || 0;
+        columnWidth = this.hot.view.wt.wtViewport.getRowHeaderWidth() || 0;
       } else {
         columnWidth = this.hot.view.wt.wtTable.getStretchedColumnWidth(i) || 0;
       }
@@ -428,7 +425,7 @@ class ManualColumnMove extends BasePlugin {
       let maxIndex = countCols - 1;
       let columnsToRemove = [];
 
-      arrayEach(this.columnsMapper._arrayMap, (value, index, array) => {
+      arrayEach(this.columnsMapper._arrayMap, (value, index) => {
         if (value > maxIndex) {
           columnsToRemove.push(index);
         }
@@ -468,8 +465,8 @@ class ManualColumnMove extends BasePlugin {
    */
   onBeforeOnCellMouseDown(event, coords, TD, blockCalculations) {
     let wtTable = this.hot.view.wt.wtTable;
-    let isHeaderSelection = this.hot.selection.selectedHeader.cols;
-    let selection = this.hot.getSelectedRange();
+    let isHeaderSelection = this.hot.selection.isSelectedByColumnHeader();
+    let selection = this.hot.getSelectedRangeLast();
     let priv = privatePool.get(this);
     let isSortingElement = event.realTarget.className.indexOf('columnSorting') > -1;
 
@@ -564,7 +561,7 @@ class ManualColumnMove extends BasePlugin {
    * @param {Object} blockCalculations Object which contains information about blockCalculation for row, column or cells.
    */
   onBeforeOnCellMouseOver(event, coords, TD, blockCalculations) {
-    let selectedRange = this.hot.getSelectedRange();
+    let selectedRange = this.hot.getSelectedRangeLast();
     let priv = privatePool.get(this);
 
     if (!selectedRange || !priv.pressed) {
@@ -599,7 +596,7 @@ class ManualColumnMove extends BasePlugin {
 
     removeClass(this.hot.rootElement, [CSS_ON_MOVING, CSS_SHOW_UI, CSS_AFTER_SELECTION]);
 
-    if (this.hot.selection.selectedHeader.cols) {
+    if (this.hot.selection.isSelectedByColumnHeader()) {
       addClass(this.hot.rootElement, CSS_AFTER_SELECTION);
     }
     if (priv.columnsToMove.length < 1 || priv.target.col === void 0 || priv.columnsToMove.indexOf(priv.target.col) > -1) {
@@ -668,10 +665,8 @@ class ManualColumnMove extends BasePlugin {
    * `afterRemoveCol` hook callback.
    *
    * @private
-   * @param {Number} index Visual column index of the removed column.
-   * @param {Number} amount Amount of removed columns.
    */
-  onAfterRemoveCol(index, amount) {
+  onAfterRemoveCol() {
     this.columnsMapper.unshiftItems(this.removedColumns);
   }
 
@@ -679,9 +674,8 @@ class ManualColumnMove extends BasePlugin {
    * `afterLoadData` hook callback.
    *
    * @private
-   * @param {Boolean} firstTime True if that was loading data during the initialization.
    */
-  onAfterLoadData(firstTime) {
+  onAfterLoadData() {
     this.updateColumnsMapper();
   }
 

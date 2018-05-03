@@ -1,22 +1,43 @@
 import {getValidSelection} from './../utils';
+import {arrayEach} from './../../../helpers/array';
+import {transformSelectionToRowDistance} from './../../../selection/utils';
+import * as C from './../../../i18n/constants';
 
 export const KEY = 'remove_row';
 
 export default function removeRowItem() {
   return {
     key: KEY,
-    name: 'Remove row',
+    name() {
+      const selection = this.getSelected();
+      let pluralForm = 0;
 
-    callback(key, selection) {
-      let amount = selection.end.row - selection.start.row + 1;
+      if (selection) {
+        if (selection.length > 1) {
+          pluralForm = 1;
+        } else {
+          const [fromRow, , toRow] = selection[0];
 
-      this.alter('remove_row', selection.start.row, amount, 'ContextMenu.removeRow');
+          if (fromRow - toRow !== 0) {
+            pluralForm = 1;
+          }
+        }
+      }
+
+      return this.getTranslatedPhrase(C.CONTEXTMENU_ITEMS_REMOVE_ROW, pluralForm);
+    },
+    callback() {
+      this.alter('remove_row', transformSelectionToRowDistance(this.getSelected()), null, 'ContextMenu.removeRow');
     },
     disabled() {
       const selected = getValidSelection(this);
       const totalRows = this.countRows();
 
-      return !selected || this.selection.selectedHeader.cols || this.selection.selectedHeader.corner || !totalRows;
+      if (!selected) {
+        return true;
+      }
+
+      return this.selection.isSelectedByColumnHeader() || this.selection.isSelectedByCorner() || !totalRows;
     },
     hidden() {
       return !this.getSettings().allowRemoveRow;

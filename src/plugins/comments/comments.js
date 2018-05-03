@@ -16,6 +16,7 @@ import BasePlugin from './../_base';
 import CommentEditor from './commentEditor';
 import {checkSelectionConsistency, markLabelAsSelected} from './../contextMenu/utils';
 import DisplaySwitch from './displaySwitch';
+import * as C from './../../i18n/constants';
 
 import './comments.css';
 
@@ -67,7 +68,7 @@ const META_READONLY = 'readOnly';
  * var commentsPlugin = hot.getPlugin('comments');
  *
  * // Manage comments programmatically:
- * commentsPlugin.editor.setCommentAtCell(1, 6, 'Comment contents');
+ * commentsPlugin.setCommentAtCell(1, 6, 'Comment contents');
  * commentsPlugin.showAtCell(1, 6);
  * commentsPlugin.removeCommentAtCell(1, 6);
  *
@@ -430,7 +431,7 @@ class Comments extends BasePlugin {
    * @returns {Boolean}
    */
   checkSelectionCommentsConsistency() {
-    const selected = this.hot.getSelectedRange();
+    const selected = this.hot.getSelectedRangeLast();
 
     if (!selected) {
       return false;
@@ -617,7 +618,7 @@ class Comments extends BasePlugin {
    */
   onContextMenuAddComment() {
     this.displaySwitch.cancelHiding();
-    let coords = this.hot.getSelectedRange();
+    let coords = this.hot.getSelectedRangeLast();
 
     this.contextMenuEvent = true;
     this.setRange({
@@ -636,13 +637,14 @@ class Comments extends BasePlugin {
    * Context Menu's "remove comment" callback.
    *
    * @private
-   * @param {Object} selection The current selection.
    */
-  onContextMenuRemoveComment(selection) {
+  onContextMenuRemoveComment() {
     this.contextMenuEvent = true;
 
-    for (let i = selection.start.row; i <= selection.end.row; i++) {
-      for (let j = selection.start.col; j <= selection.end.col; j++) {
+    let {from, to} = this.hot.getSelectedRangeLast();
+
+    for (let i = from.row; i <= to.row; i++) {
+      for (let j = from.col; j <= to.col; j++) {
         this.removeCommentAtCell(i, j, false);
       }
     }
@@ -654,13 +656,14 @@ class Comments extends BasePlugin {
    * Context Menu's "make comment read-only" callback.
    *
    * @private
-   * @param {Object} selection The current selection.
    */
-  onContextMenuMakeReadOnly(selection) {
+  onContextMenuMakeReadOnly() {
     this.contextMenuEvent = true;
 
-    for (let i = selection.start.row; i <= selection.end.row; i++) {
-      for (let j = selection.start.col; j <= selection.end.col; j++) {
+    let {from, to} = this.hot.getSelectedRangeLast();
+
+    for (let i = from.row; i <= to.row; i++) {
+      for (let j = from.col; j <= to.col; j++) {
         let currentState = !!this.getCommentMeta(i, j, META_READONLY);
 
         this.updateCommentMeta(i, j, {[META_READONLY]: !currentState});
@@ -681,25 +684,31 @@ class Comments extends BasePlugin {
       },
       {
         key: 'commentsAddEdit',
-        name: () => (this.checkSelectionCommentsConsistency() ? 'Edit comment' : 'Add comment'),
+        name: () => {
+          if (this.checkSelectionCommentsConsistency()) {
+            return this.hot.getTranslatedPhrase(C.CONTEXTMENU_ITEMS_EDIT_COMMENT);
+          }
+
+          return this.hot.getTranslatedPhrase(C.CONTEXTMENU_ITEMS_ADD_COMMENT);
+        },
         callback: () => this.onContextMenuAddComment(),
         disabled() {
-          return !(this.getSelected() && !this.selection.selectedHeader.corner);
+          return !(this.getSelectedLast() && !this.selection.isSelectedByCorner());
         }
       },
       {
         key: 'commentsRemove',
         name() {
-          return 'Delete comment';
+          return this.getTranslatedPhrase(C.CONTEXTMENU_ITEMS_REMOVE_COMMENT);
         },
-        callback: (key, selection) => this.onContextMenuRemoveComment(selection),
-        disabled: () => this.hot.selection.selectedHeader.corner
+        callback: () => this.onContextMenuRemoveComment(),
+        disabled: () => this.hot.selection.isSelectedByCorner()
       },
       {
         key: 'commentsReadOnly',
         name() {
-          let label = 'Read only comment';
-          let hasProperty = checkSelectionConsistency(this.getSelectedRange(), (row, col) => {
+          let label = this.getTranslatedPhrase(C.CONTEXTMENU_ITEMS_READ_ONLY_COMMENT);
+          let hasProperty = checkSelectionConsistency(this.getSelectedRangeLast(), (row, col) => {
             let readOnlyProperty = this.getCellMeta(row, col)[META_COMMENT];
             if (readOnlyProperty) {
               readOnlyProperty = readOnlyProperty[META_READONLY];
@@ -716,8 +725,8 @@ class Comments extends BasePlugin {
 
           return label;
         },
-        callback: (key, selection) => this.onContextMenuMakeReadOnly(selection),
-        disabled: () => this.hot.selection.selectedHeader.corner || !this.checkSelectionCommentsConsistency()
+        callback: () => this.onContextMenuMakeReadOnly(),
+        disabled: () => this.hot.selection.isSelectedByCorner() || !this.checkSelectionCommentsConsistency()
       }
     );
   }

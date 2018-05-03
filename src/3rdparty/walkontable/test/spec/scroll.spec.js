@@ -450,13 +450,12 @@ describe('WalkontableScroll', () => {
       }, 20);
     });
 
-    it('should update the scroll position of the master table only once, when scrolling the overlay', (done) => {
+    it('should call onScrollVertically hook, if scrollTop was changed', (done) => {
       createDataArray(100, 100);
       $wrapper.width(260).height(201);
 
-      var masterCallback = jasmine.createSpy('masterCallback');
-      var topOverlayCallback = jasmine.createSpy('topOverlayCallback');
-      var leftOverlayCallback = jasmine.createSpy('leftOverlayCallback');
+      var scrollHorizontally = jasmine.createSpy('scrollHorizontal');
+      var scrollVertically = jasmine.createSpy('scrollVertically');
 
       var wt = new Walkontable.Core({
         table: $table[0],
@@ -464,40 +463,51 @@ describe('WalkontableScroll', () => {
         totalRows: getTotalRows,
         totalColumns: getTotalColumns,
         fixedColumnsLeft: 2,
-        fixedRowsTop: 2
+        fixedRowsTop: 2,
+        onScrollVertically: scrollVertically,
+        onScrollHorizontally: scrollHorizontally,
       });
 
-      var masterHolder = wt.wtTable.holder;
-      var leftOverlayHolder = wt.wtOverlays.leftOverlay.clone.wtTable.holder;
-      var topOverlayHolder = wt.wtOverlays.topOverlay.clone.wtTable.holder;
-
-      masterHolder.addEventListener('scroll', masterCallback);
-      leftOverlayHolder.addEventListener('scroll', leftOverlayCallback);
-
       wt.draw();
-      topOverlayHolder.scrollLeft = 400;
+      wt.wtTable.holder.scrollTop = 400;
+
       wt.draw();
 
       setTimeout(() => {
-        expect(masterCallback.calls.count()).toEqual(1);
-        expect(leftOverlayCallback.calls.count()).toEqual(0);
-
-        expect(topOverlayHolder.scrollLeft).toEqual(masterHolder.scrollLeft);
-
-        leftOverlayHolder.scrollTop = 200;
-        wt.draw();
-      }, 50);
-
-      setTimeout(() => {
-        expect(masterCallback.calls.count()).toEqual(2);
-        expect(leftOverlayCallback.calls.count()).toEqual(1);
-
-        expect(leftOverlayHolder.scrollTop).toEqual(masterHolder.scrollTop);
-
-        masterHolder.removeEventListener('scroll', masterCallback);
-        leftOverlayHolder.removeEventListener('scroll', leftOverlayCallback);
+        expect(scrollVertically.calls.count()).toEqual(1);
+        expect(scrollHorizontally.calls.count()).toEqual(0);
         done();
-      }, 100);
+      }, 50);
+    });
+
+    it('should call onScrollHorizontally hook, if scrollLeft was changed', (done) => {
+      createDataArray(100, 100);
+      $wrapper.width(260).height(201);
+
+      var scrollHorizontally = jasmine.createSpy('scrollHorizontal');
+      var scrollVertically = jasmine.createSpy('scrollVertically');
+
+      var wt = new Walkontable.Core({
+        table: $table[0],
+        data: getData,
+        totalRows: getTotalRows,
+        totalColumns: getTotalColumns,
+        fixedColumnsLeft: 2,
+        fixedRowsTop: 2,
+        onScrollVertically: scrollVertically,
+        onScrollHorizontally: scrollHorizontally,
+      });
+
+      wt.draw();
+      wt.wtTable.holder.scrollLeft = 400;
+
+      wt.draw();
+
+      setTimeout(() => {
+        expect(scrollVertically.calls.count()).toEqual(0);
+        expect(scrollHorizontally.calls.count()).toEqual(1);
+        done();
+      }, 50);
     });
 
     // Commented due to PhantomJS WheelEvent problem.

@@ -25,6 +25,7 @@ import {
 import './contextMenu.css';
 
 Hooks.getSingleton().register('afterContextMenuDefaultOptions');
+Hooks.getSingleton().register('beforeContextMenuShow');
 Hooks.getSingleton().register('afterContextMenuShow');
 Hooks.getSingleton().register('afterContextMenuHide');
 Hooks.getSingleton().register('afterContextMenuExecute');
@@ -135,7 +136,11 @@ class ContextMenu extends BasePlugin {
     }
     super.enablePlugin();
 
-    this.callOnPluginsReady(() => {
+    const delayedInitialization = () => {
+      if (!this.hot) {
+        return;
+      }
+
       this.hot.runHooks('afterContextMenuDefaultOptions', predefinedItems);
 
       this.itemsFactory.setPredefinedItems(predefinedItems.items);
@@ -149,12 +154,21 @@ class ContextMenu extends BasePlugin {
 
       this.menu.setMenuItems(menuItems);
 
+      this.menu.addLocalHook('beforeOpen', () => this.onMenuBeforeOpen());
       this.menu.addLocalHook('afterOpen', () => this.onMenuAfterOpen());
       this.menu.addLocalHook('afterClose', () => this.onMenuAfterClose());
       this.menu.addLocalHook('executeCommand', (...params) => this.executeCommand.apply(this, params));
 
       // Register all commands. Predefined and added by user or by plugins
       arrayEach(menuItems, (command) => this.commandExecutor.registerCommand(command.key, command));
+    };
+
+    this.callOnPluginsReady(() => {
+      if (this.isPluginsReady) {
+        setTimeout(delayedInitialization, 0);
+      } else {
+        delayedInitialization();
+      }
     });
   }
 
@@ -226,8 +240,8 @@ class ContextMenu extends BasePlugin {
    * You can execute all predefined commands:
    *  * `'row_above'` - Insert row above
    *  * `'row_below'` - Insert row below
-   *  * `'col_left'` - Insert column on the left
-   *  * `'col_right'` - Insert column on the right
+   *  * `'col_left'` - Insert column left
+   *  * `'col_right'` - Insert column right
    *  * `'clear_column'` - Clear selected column
    *  * `'remove_row'` - Remove row
    *  * `'remove_col'` - Remove column
@@ -282,6 +296,15 @@ class ContextMenu extends BasePlugin {
     }
 
     this.open(event);
+  }
+
+  /**
+   * On menu before open listener.
+   *
+   * @private
+   */
+  onMenuBeforeOpen() {
+    this.hot.runHooks('beforeContextMenuShow', this);
   }
 
   /**

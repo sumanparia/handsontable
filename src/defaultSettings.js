@@ -1,5 +1,5 @@
 import {isDefined} from './helpers/mixed';
-import {isObjectEquals} from './helpers/object';
+import {isObjectEqual} from './helpers/object';
 
 /**
  * @alias Options
@@ -59,7 +59,7 @@ import {isObjectEquals} from './helpers/object';
  *
  * ##### 3. Cells
  *
- * Configuration options that are provided using second-level function `handsontable(container, {cells: function: (row, col, prop){ }})`
+ * Configuration options that are provided using third-level function `handsontable(container, {cells: function: (row, col, prop){ }})`
  *
  * ---
  * ## Architecture performance
@@ -73,6 +73,15 @@ import {isObjectEquals} from './helpers/object';
 function DefaultSettings() {};
 
 DefaultSettings.prototype = {
+  /**
+   * License key for commercial version of Handsontable.
+   *
+   * @pro
+   * @type {String}
+   * @default 'trial'
+   */
+  licenseKey: 'trial',
+
   /**
    * @description
    * Initial data source that will be bound to the data grid __by reference__ (editing data grid alters the data source).
@@ -281,7 +290,9 @@ DefaultSettings.prototype = {
    *   {
    *     // column options for the first column
    *     type: 'numeric',
-   *     format: '0,0.00 $'
+   *     numericFormat: {
+   *       pattern: '0,0.00 $'
+   *     }
    *   },
    *   {
    *     // column options for the second column
@@ -496,12 +507,20 @@ DefaultSettings.prototype = {
   allowRemoveColumn: true,
 
   /**
-   * If true, selection of multiple cells using keyboard or mouse is allowed.
+   * @description
+   * Defines how the table selection reacts. The selection support three different behaviors defined as:
+   *  * `'single'` Only a single cell can be selected.
+   *  * `'range'` Multiple cells within a single range can be selected.
+   *  * `'multiple'` Multiple ranges of cells can be selected.
    *
-   * @type {Boolean}
-   * @default true
+   * To see how to interact with selection by getting selected data or change styles of the selected cells go to
+   * [https://docs.handsontable.com/demo-selecting-ranges.html](https://docs.handsontable.com/demo-selecting-ranges.html).
+   *
+   * @since 0.36.0
+   * @type {String}
+   * @default 'multiple'
    */
-  multiSelect: true,
+  selectionMode: 'multiple',
 
   /**
    * Enables the fill handle (drag-down and copy-down) functionality, which shows a small rectangle in bottom
@@ -703,6 +722,21 @@ DefaultSettings.prototype = {
    * ```
    */
   currentHeaderClassName: 'ht__highlight',
+
+  /**
+   * Class name for all active headers in selections. The header will be marked with this class name
+   * only when a whole column or row will be selected.
+   *
+   * @type {String}
+   * @since 0.38.2
+   * @default 'ht__active_highlight'
+   * @example
+   * ```js
+   * activeHeaderClassName: 'ht__active_highlight' // This will add a 'ht__active_highlight' class name to appropriate table headers.
+   * ```
+   */
+  activeHeaderClassName: 'ht__active_highlight',
+
   /**
    * Class name for the Handsontable container element.
    *
@@ -753,7 +787,7 @@ DefaultSettings.prototype = {
         if (typeof value === 'object') {
           meta = this.getCellMeta(row, col);
 
-          return isObjectEquals(this.getSchema()[meta.prop], value);
+          return isObjectEqual(this.getSchema()[meta.prop], value);
         }
         return false;
       }
@@ -1396,8 +1430,9 @@ DefaultSettings.prototype = {
    * Possible values:
    *  * `true` - Disables any type of visual selection (current and area selection),
    *  * `false` - Enables any type of visual selection. This is default value.
-   *  * `current` - Disables the selection of a currently selected cell, the area selection is still present.
-   *  * `area` - Disables the area selection, the currently selected cell selection is still present.
+   *  * `'current'` - Disables the selection of a currently selected cell, the area selection is still present.
+   *  * `'area'` - Disables the area selection, the currently selected cell selection is still present.
+   *  * `'header'` - Disables the headers selection, the currently selected cell selection is still present (available since 0.36.0).
    *
    * @type {Boolean|String|Array}
    * @default false
@@ -1410,7 +1445,7 @@ DefaultSettings.prototype = {
    * ...
    *
    * ...
-   * // as string ('current' or 'area')
+   * // as string ('current', 'area' or 'header')
    * disableVisualSelection: 'current',
    * ...
    *
@@ -1565,8 +1600,12 @@ DefaultSettings.prototype = {
   label: void 0,
 
   /**
-   * Display format. See [numbrojs](http://numbrojs.com). This option is desired for
-   * [numeric](http://docs.handsontable.com/demo-numeric.html)-typed cells.
+   * Display format. This option is desired for [numeric-typed](http://docs.handsontable.com/demo-numeric.html) cells. Format is described by two properties:
+   *
+   * - pattern, which is handled by `numbro` for purpose of formatting numbers to desired pattern. List of supported patterns can be found [here](http://numbrojs.com/format.html#numbers).
+   * - culture, which is handled by `numbro` for purpose of formatting currencies. Examples showing how it works can be found [here](http://numbrojs.com/format.html#currency). List of supported cultures can be found [here](http://numbrojs.com/languages.html#supported-languages).
+   *
+   * __Note:__ Please keep in mind that this option is used only to format the displayed output! It has no effect on the input data provided for the cell. The numeric data can be entered to the table only as floats (separated by a dot or a comma) or integers, and are stored in the source dataset as JavaScript numbers.
    *
    * Since 0.26.0 Handsontable uses [numbro](http://numbrojs.com/) as a main library for numbers formatting.
    *
@@ -1575,31 +1614,21 @@ DefaultSettings.prototype = {
    * ...
    * columns: [{
    *   type: 'numeric',
-   *   format: '0,00'
+   *   numericFormat: {
+   *     pattern: '0,00',
+   *     culture: 'en-US'
+   *   }
    * }]
    * ...
    * ```
    *
-   * @type {String}
-   * @default '0'
+   * @since 0.35.0
+   * @type {Object}
    */
-  format: void 0,
+  numericFormat: void 0,
 
   /**
-   * Language display format. See [numbrojs](http://numbrojs.com/languages.html#supported-languages). This option is desired for
-   * [numeric](http://docs.handsontable.com/demo-numeric.html)-typed cells.
-   *
-   * Since 0.26.0 Handsontable uses [numbro](http://numbrojs.com/) as a main library for numbers formatting.
-   *
-   * @example
-   * ```js
-   * ...
-   * columns: [{
-   *   type: 'numeric',
-   *   language: 'en-US'
-   * }]
-   * ...
-   * ```
+   * Language for Handsontable translation. Possible language codes are: `en-US`, `pl-PL`.
    *
    * @type {String}
    * @default 'en-US'
@@ -2061,6 +2090,22 @@ DefaultSettings.prototype = {
    * @default: false
    */
   filteringCaseSensitive: false,
+
+  /**
+   * @description
+   * Disable or enable the drag to scroll functionality.
+   *
+   * @example
+   * ```js
+   * ...
+   * dragToScroll: false,
+   * ...
+   * ```
+   *
+   * @type {Boolean}
+   * @default true
+   */
+  dragToScroll: true,
 };
 
 export default DefaultSettings;

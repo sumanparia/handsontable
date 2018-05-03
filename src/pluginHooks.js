@@ -132,6 +132,15 @@ const REGISTERED_HOOKS = [
 
   /**
    * @description
+   * Fired before opening the Context Menu.
+   *
+   * @event Hooks#beforeContextMenuShow
+   * @param {Object} context The Context Menu instance.
+   */
+  'beforeContextMenuShow',
+
+  /**
+   * @description
    * Fired after opening the Context Menu.
    *
    * @event Hooks#afterContextMenuShow
@@ -219,6 +228,26 @@ const REGISTERED_HOOKS = [
    */
   'afterDocumentKeyDown',
 
+  /**
+   * Fired inside the Walkontable's selection `draw` method. Can be used to add additional class names to cells, depending on the current selection.
+   *
+   * @event Hooks#afterDrawSelection
+   * @param {Number} currentRow Row index of the currently processed cell.
+   * @param {Number} currentColumn Column index of the currently cell.
+   * @param {Array} cornersOfSelection Array of the current selection in a form of `[startRow, startColumn, endRow, endColumn]`.
+   * @param {Number|undefined} layerLevel Number indicating which layer of selection is currently processed.
+   * @since 0.38.1
+   * @returns {String|undefined} Can return a `String`, which will act as an additional `className` to be added to the currently processed cell.
+   */
+  'afterDrawSelection',
+  /**
+   * Fired inside the Walkontable's `refreshSelections` method. Can be used to remove additional class names from all cells in the table.
+   *
+   * @event Hooks#beforeRemoveCellClassNames
+   * @since 0.38.1
+   * @returns {String[]|undefined} Can return an `Array` of `String`s. Each of these strings will act like class names to be removed from all the cells in the table.
+   */
+  'beforeRemoveCellClassNames',
   /**
    * Callback fired after getting the cell settings.
    *
@@ -406,12 +435,12 @@ const REGISTERED_HOOKS = [
    * @param {Number} r2 Selection end visual row index.
    * @param {Number} c2 Selection end visual column index.
    * @param {Object} preventScrolling Object with `value` property where its value change will be observed.
-   *    * @example
+   * @param {Number} selectionLayerLevel The number which indicates what selection layer is currently modified.
+   * @example
    * ```js
    * handsontable({
-   *   afterSelection: function (r, c, r2, c2, preventScrolling) {
+   *   afterSelection: function (r, c, r2, c2, preventScrolling, selectionLayerLevel) {
    *     // setting if prevent scrolling after selection
-   *
    *     preventScrolling.value = true;
    *   }
    * })
@@ -428,12 +457,12 @@ const REGISTERED_HOOKS = [
    * @param {Number} r2 Selection end visual row index.
    * @param {String} p2 Selection end data source object property name.
    * @param {Object} preventScrolling Object with `value` property where its value change will be observed.
-   *    * @example
+   * @param {Number} selectionLayerLevel The number which indicates what selection layer is currently modified.
+   * @example
    * ```js
    * handsontable({
-   *   afterSelectionByProp: function (r, c, r2, c2, preventScrolling) {
+   *   afterSelectionByProp: function (r, c, r2, c2, preventScrolling, selectionLayerLevel) {
    *     // setting if prevent scrolling after selection
-   *
    *     preventScrolling.value = true;
    *   }
    * })
@@ -449,6 +478,7 @@ const REGISTERED_HOOKS = [
    * @param {Number} c Selection start visual column index.
    * @param {Number} r2 Selection end visual row index.
    * @param {Number} c2 Selection end visual column index.
+   * @param {Number} selectionLayerLevel The number which indicates what selection layer is currently modified.
    */
   'afterSelectionEnd',
 
@@ -461,6 +491,7 @@ const REGISTERED_HOOKS = [
    * @param {String} p Selection start data source object property index.
    * @param {Number} r2 Selection end visual row index.
    * @param {String} p2 Selection end data source object property index.
+   * @param {Number} selectionLayerLevel The number which indicates what selection layer is currently modified.
    */
   'afterSelectionEndByProp',
 
@@ -475,6 +506,18 @@ const REGISTERED_HOOKS = [
    * @param {*} value The updated meta value.
    */
   'afterSetCellMeta',
+
+  /**
+   * Called after cell meta is removed.
+   *
+   * @event Hooks#afterRemoveCellMeta
+   * @since 0.33.1
+   * @param {Number} row Visual row index.
+   * @param {Number} col Visual column index.
+   * @param {String} key The removed meta key.
+   * @param {*} value Value which was under removed key of cell meta.
+   */
+  'afterRemoveCellMeta',
 
   /**
    * Called after cell data was changed.
@@ -502,6 +545,7 @@ const REGISTERED_HOOKS = [
    * Fired after calling the `updateSettings` method.
    *
    * @event Hooks#afterUpdateSettings
+   * @param {Object} settings New settings object.
    */
   'afterUpdateSettings',
 
@@ -524,12 +568,31 @@ const REGISTERED_HOOKS = [
   'afterValidate',
 
   /**
+   * Fired before successful change of language (when proper language code was set)
+   *
+   * @event Hooks#beforeLanguageChange
+   * @since 0.35.0
+   * @param {String} languageCode New language code.
+   */
+  'beforeLanguageChange',
+
+  /**
+   * Fired after successful change of language (when proper language code was set)
+   *
+   * @event Hooks#afterLanguageChange
+   * @since 0.35.0
+   * @param {String} languageCode New language code.
+   */
+  'afterLanguageChange',
+
+  /**
    * Fired before populating the data in the autofill feature.
    *
    * @event Hooks#beforeAutofill
    * @param {Object} start Object containing information about first filled cell: `{row: 2, col: 0}`.
    * @param {Object} end Object containing information about last filled cell: `{row: 4, col: 1}`.
-   * @param {Array} data 2D array containing information about fill pattern: `[["1', "Ted"], ["1', "John"]]`.
+   * @param {Array} data 2D array containing information about fill pattern: `[["1", "Ted"], ["1", "John"]]`.
+   * @param {Array} baseRange The coordinates of the base area for autofill.
    */
   'beforeAutofill',
 
@@ -629,6 +692,18 @@ const REGISTERED_HOOKS = [
   'beforeGetCellMeta',
 
   /**
+   * Called before cell meta is removed.
+   *
+   * @event Hooks#beforeRemoveCellMeta
+   * @since 0.33.1
+   * @param {Number} row Visual row index.
+   * @param {Number} col Visual column index.
+   * @param {String} key The removed meta key.
+   * @param {*} value Value which is under removed key of cell meta.
+   */
+  'beforeRemoveCellMeta',
+
+  /**
    * @description
    * Callback fired before Handsontable instance is initiated.
    *
@@ -717,10 +792,18 @@ const REGISTERED_HOOKS = [
   'beforeRender',
 
   /**
+   * Callback fired before setting range is started but not finished yet.
+   *
+   * @event Hooks#beforeSetRangeStartOnly
+   * @param {CellCoords} coords CellCoords instance.
+   */
+  'beforeSetRangeStartOnly',
+
+  /**
    * Callback fired before setting range is started.
    *
    * @event Hooks#beforeSetRangeStart
-   * @param {Array} coords CellCoords array.
+   * @param {CellCoords} coords CellCoords instance.
    */
   'beforeSetRangeStart',
 
@@ -728,7 +811,7 @@ const REGISTERED_HOOKS = [
    * Callback fired before setting range is ended.
    *
    * @event Hooks#beforeSetRangeEnd
-   * @param {Array} coords CellCoords array.
+   * @param {CellCoords} coords CellCoords instance.
    */
   'beforeSetRangeEnd',
 
@@ -874,6 +957,18 @@ const REGISTERED_HOOKS = [
    * @param {Number} row Physical row index.
    */
   'modifyRowData',
+
+  /**
+   * Used to modify the cell coordinates when using the `getCell` method.
+   *
+   * @event Hooks#modifyGetCellCoords
+   * @since 0.36.0
+   * @param {Number} row Visual row index.
+   * @param {Number} col Visual column index.
+   * @param {Boolean} topmost If set to true, it returns the TD element from the topmost overlay. For example,
+   * if the wanted cell is in the range of fixed rows, it will return a TD element from the `top` overlay.
+   */
+  'modifyGetCellCoords',
 
   /**
    * Fired after loading data using the Persistent State plugin.
@@ -1082,7 +1177,7 @@ const REGISTERED_HOOKS = [
   /**
    * Fired after values are pasted into table.
    *
-   * @event Hooks#afterePaste
+   * @event Hooks#afterPaste
    * @since 0.31.1
    * @param {Array} data An array of arrays which contains the pasted data.
    * @param {Array} coords An array of objects with ranges of the visual indexes (`startRow`, `startCol`, `endRow`, `endCol`)
@@ -1375,6 +1470,15 @@ const REGISTERED_HOOKS = [
   'afterUntrimRow',
 
   /**
+   * Fired before opening the dropdown menu.
+   *
+   * @pro
+   * @event Hooks#beforeDropdownMenuShow
+   * @param {DropdownMenu} instance The DropdownMenu instance.
+   */
+  'beforeDropdownMenuShow',
+
+  /**
    * Fired after opening the dropdown menu.
    *
    * @pro
@@ -1459,7 +1563,60 @@ const REGISTERED_HOOKS = [
    * @param {Number} row Row index of the edited cell.
    * @param {Number} column Column index of the edited cell.
    */
-  'afterBeginEditing'
+  'afterBeginEditing',
+
+  /**
+   * Fired before cell merging.
+   *
+   * @event Hooks#beforeMergeCells
+   * @param {CellRange} cellRange Selection cell range.
+   * @param {Boolean} [auto=false] `true` if called automatically by the plugin.
+   */
+  'beforeMergeCells',
+
+  /**
+   * Fired after cell merging.
+   *
+   * @event Hooks#afterMergeCells
+   * @param {CellRange} cellRange Selection cell range.
+   * @param {Object} mergeParent The parent collection of the provided cell range.
+   * @param {Boolean} [auto=false] `true` if called automatically by the plugin.
+   */
+  'afterMergeCells',
+
+  /**
+   * Fired before unmerging the cells.
+   *
+   * @event Hooks#beforeUnmergeCells
+   * @param {CellRange} cellRange Selection cell range.
+   * @param {Boolean} [auto=false] `true` if called automatically by the plugin.
+   */
+  'beforeUnmergeCells',
+
+  /**
+   * Fired after unmerging the cells.
+   *
+   * @event Hooks#beforeUnmergeCells
+   * @param {CellRange} cellRange Selection cell range.
+   * @param {Boolean} [auto=false] `true` if called automatically by the plugin.
+   */
+  'afterUnmergeCells',
+
+  /**
+   * Fired after the listening is turned on.
+   *
+   * @event Hooks#afterListen
+   * @since 0.34.5
+   */
+  'afterListen',
+
+  /**
+   * Fired after the listening is turned off.
+   *
+   * @event Hooks#afterUnlisten
+   * @since 0.34.5
+   */
+  'afterUnlisten',
 ];
 
 class Hooks {
@@ -1495,6 +1652,7 @@ class Hooks {
   createEmptyBucket() {
     const bucket = Object.create(null);
 
+    // eslint-disable-next-line no-return-assign
     arrayEach(REGISTERED_HOOKS, (hook) => (bucket[hook] = []));
 
     return bucket;
@@ -1735,6 +1893,7 @@ class Hooks {
    * ```
    */
   destroy(context = null) {
+    // eslint-disable-next-line no-return-assign
     objectEach(this.getBucket(context), (value, key, bucket) => (bucket[key].length = 0));
   }
 
